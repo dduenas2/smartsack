@@ -89,6 +89,8 @@ logs/
 # ----- Datos sensibles / generados -----
 backend/etl/sample_data/*.csv
 !backend/etl/sample_data/.gitkeep
+# CSV de muestra versionado a propósito (entregable del refactor de confirmations).
+!backend/etl/sample_data/confirmations_sample.csv
 
 # ----- Sistema operativo -----
 .DS_Store

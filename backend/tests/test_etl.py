@@ -27,8 +27,14 @@ from app.models import (
     ETLLoad,
     ETLLoadKind,
     ETLLoadStatus,
+    EventType,
+    Machine,
+    OperationStatus,
+    OrderOperation,
     OrderStatus,
+    ProductionEvent,
     ProductionOrder,
+    ScrapReason,
 )
 from app.services import etl_service
 from tests.conftest import auth_header
@@ -358,6 +364,143 @@ def test_service_confirmation_unknown_order_is_row_error(db_session) -> None:
     )
     assert load.status == ETLLoadStatus.PARTIAL
     assert load.rows_failed == 1
+
+
+# -----------------------------------------------------------------------------
+# Helpers para los tests de eventos production_update
+# -----------------------------------------------------------------------------
+def _seed_line_a_order(db_session, order_number: str) -> None:
+    """Inserta una orden en la línea A (IMP-01) → auto-crea sus 4 operaciones."""
+    etl_service.process_upload(
+        db_session,
+        content=_csv_bytes([
+            {
+                "order_number": order_number,
+                "product_type": "X",
+                "product_description": "",
+                "quantity_ordered": 1000,
+                "machine_code": "IMP-01",
+                "planned_start": "2026-06-01T06:00:00",
+                "planned_end": "2026-06-01T14:00:00",
+                "priority": "normal",
+            }
+        ]),
+        filename="seed.csv",
+        kind=ETLLoadKind.PRODUCTION_ORDERS,
+        uploaded_by_id=None,
+    )
+
+
+def _operation_for(db_session, order_number: str, machine_code: str) -> OrderOperation:
+    order = db_session.scalar(
+        select(ProductionOrder).where(ProductionOrder.order_number == order_number)
+    )
+    machine = db_session.scalar(select(Machine).where(Machine.code == machine_code))
+    return db_session.scalar(
+        select(OrderOperation)
+        .where(OrderOperation.order_id == order.id)
+        .where(OrderOperation.machine_id == machine.id)
+    )
+
+
+def _events_for_operation(db_session, operation_id: int) -> list[ProductionEvent]:
+    return list(
+        db_session.scalars(
+            select(ProductionEvent)
+            .where(ProductionEvent.operation_id == operation_id)
+            .where(ProductionEvent.event_type == EventType.PRODUCTION_UPDATE)
+        )
+    )
+
+
+def test_service_confirmation_creates_production_update_event(db_session) -> None:
+    """Una confirmación válida deja una traza production_update en la operación."""
+    _seed_line_a_order(db_session, "OP-EVT-CREATE")
+    load = etl_service.process_upload(
+        db_session,
+        content=_csv_bytes([
+            {
+                "order_number": "OP-EVT-CREATE",
+                "machine_code": "IMP-01",
+                "quantity_produced": 990,
+                "actual_start": "2026-06-01T06:30:00",
+                "actual_end": "",
+                "scrap_kg": 2.0,
+                "scrap_reason": "quality_defect",
+            }
+        ]),
+        filename="conf.csv",
+        kind=ETLLoadKind.CONFIRMATIONS,
+        uploaded_by_id=None,
+    )
+    assert load.status == ETLLoadStatus.SUCCESS
+
+    op = _operation_for(db_session, "OP-EVT-CREATE", "IMP-01")
+    events = _events_for_operation(db_session, op.id)
+    assert len(events) == 1
+    ev = events[0]
+    assert ev.operation_id == op.id
+    assert ev.order_id == op.order_id
+    assert ev.machine_id == op.machine_id
+    assert ev.quantity == 990
+    assert ev.scrap_kg == pytest.approx(2.0)
+    assert ev.scrap_reason == ScrapReason.QUALITY_DEFECT
+    assert ev.description.startswith("[ETL]")
+
+
+def test_service_confirmation_event_is_idempotent(db_session) -> None:
+    """Recargar el mismo CSV de confirmación actualiza el evento, no lo duplica."""
+    _seed_line_a_order(db_session, "OP-EVT-IDEMP")
+    conf = _csv_bytes([
+        {
+            "order_number": "OP-EVT-IDEMP",
+            "machine_code": "IMP-01",
+            "quantity_produced": 980,
+            "actual_start": "2026-06-01T06:30:00",
+            "actual_end": "",
+            "scrap_kg": 1.0,
+            "scrap_reason": "setup_loss",
+        }
+    ])
+    etl_service.process_upload(
+        db_session, content=conf, filename="c1.csv",
+        kind=ETLLoadKind.CONFIRMATIONS, uploaded_by_id=None,
+    )
+    etl_service.process_upload(
+        db_session, content=conf, filename="c2.csv",
+        kind=ETLLoadKind.CONFIRMATIONS, uploaded_by_id=None,
+    )
+    op = _operation_for(db_session, "OP-EVT-IDEMP", "IMP-01")
+    events = _events_for_operation(db_session, op.id)
+    assert len(events) == 1
+    assert events[0].quantity == 980
+
+
+def test_service_confirmation_completes_and_promotes_next(db_session) -> None:
+    """Confirmar con actual_end completa la operación y promueve la siguiente a READY."""
+    _seed_line_a_order(db_session, "OP-EVT-PROMO")
+    etl_service.process_upload(
+        db_session,
+        content=_csv_bytes([
+            {
+                "order_number": "OP-EVT-PROMO",
+                "machine_code": "IMP-01",
+                "quantity_produced": 950,
+                "actual_start": "2026-06-01T06:30:00",
+                "actual_end": "2026-06-01T08:00:00",
+                "scrap_kg": 0,
+                "scrap_reason": "",
+            }
+        ]),
+        filename="conf.csv",
+        kind=ETLLoadKind.CONFIRMATIONS,
+        uploaded_by_id=None,
+    )
+    imp = _operation_for(db_session, "OP-EVT-PROMO", "IMP-01")
+    tub = _operation_for(db_session, "OP-EVT-PROMO", "TUB-01")
+    assert imp.status == OperationStatus.COMPLETED
+    assert tub.status == OperationStatus.READY
+    assert tub.quantity_in == 950
 
 
 # -----------------------------------------------------------------------------

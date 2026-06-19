@@ -385,6 +385,65 @@ def _process_production_orders(
     return inserted, updated, skipped, failed, errors
 
 
+def _upsert_confirmation_event(
+    db: Session,
+    *,
+    order: ProductionOrder,
+    machine: Machine,
+    operation: OrderOperation,
+    quantity_out: int,
+    scrap_kg: float,
+    scrap_reason: Optional[ScrapReason],
+    timestamp: datetime,
+) -> None:
+    """
+    Crea (o actualiza) el evento `production_update` de una confirmación ETL.
+
+    Mantiene a lo sumo UN evento con prefijo "[ETL]" por operación para
+    preservar la idempotencia del loader: si el mismo archivo se recarga, el
+    evento existente se actualiza en lugar de duplicarse.
+
+    El scrap se guarda como NULL cuando es 0 (coherente con la regla del
+    modelo: la empacadora nunca lleva scrap).
+    """
+    descripcion = f"[ETL][CONF] {machine.code}: {quantity_out:,} u"
+    if scrap_kg > 0:
+        motivo = scrap_reason.value if scrap_reason is not None else "—"
+        descripcion += f", scrap {scrap_kg:g} kg ({motivo})"
+
+    existing = db.scalar(
+        select(ProductionEvent)
+        .where(ProductionEvent.operation_id == operation.id)
+        .where(ProductionEvent.event_type == EventType.PRODUCTION_UPDATE)
+        .where(ProductionEvent.description.like("[ETL]%"))
+    )
+
+    scrap_value = scrap_kg if scrap_kg > 0 else None
+    if existing is None:
+        db.add(
+            ProductionEvent(
+                machine_id=machine.id,
+                order_id=order.id,
+                operation_id=operation.id,
+                user_id=None,  # originado por ETL, sin operario.
+                event_type=EventType.PRODUCTION_UPDATE,
+                description=descripcion,
+                quantity=quantity_out,
+                scrap_kg=scrap_value,
+                scrap_reason=scrap_reason,
+                timestamp=timestamp,
+            )
+        )
+    else:
+        existing.machine_id = machine.id
+        existing.order_id = order.id
+        existing.description = descripcion
+        existing.quantity = quantity_out
+        existing.scrap_kg = scrap_value
+        existing.scrap_reason = scrap_reason
+        existing.timestamp = timestamp
+
+
 def _process_confirmations(
     db: Session, df: pd.DataFrame
 ) -> Tuple[int, int, int, int, List[Dict[str, Any]]]:
@@ -411,6 +470,10 @@ def _process_confirmations(
       - Si llega actual_end: pasa a COMPLETED, se promueve la siguiente y
         (si era EMP) se actualiza order.quantity_produced + status COMPLETED.
       - EMP no acepta scrap_kg > 0 (se rechaza la fila).
+      - Cada confirmación deja una traza `production_update` vinculada a la
+        operación (auditable, alimenta OEE/ML). Para no romper la idempotencia
+        del loader, se mantiene a lo sumo UN evento "[ETL]" por operación: la
+        recarga del mismo archivo actualiza ese evento en vez de duplicarlo.
     """
     inserted = updated = skipped = failed = 0
     errors: List[Dict[str, Any]] = []
@@ -527,6 +590,20 @@ def _process_confirmations(
                 order.actual_start = actual_start
             if order.status == OrderStatus.PENDING:
                 order.status = OrderStatus.IN_PROGRESS
+
+            # ---- Traza production_update vinculada a la operación ----
+            # Auditable y consumible por OEE/ML. Idempotente: a lo sumo un
+            # evento "[ETL]" por operación; recargar el archivo lo actualiza.
+            _upsert_confirmation_event(
+                db,
+                order=order,
+                machine=machine,
+                operation=operation,
+                quantity_out=qty_out,
+                scrap_kg=scrap_kg,
+                scrap_reason=scrap_reason,
+                timestamp=actual_end or actual_start,
+            )
 
             updated += 1
         except ETLValidationError as exc:
