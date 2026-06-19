@@ -54,6 +54,9 @@ export function AuthProvider({ children }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+// Hook colocado con el provider a propósito; el aviso de react-refresh no aplica
+// a este patrón estándar de context + hook.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) {
@@ -69,6 +72,7 @@ export function useAuth() {
  * - supervisor → /supervisor (Digital Twin)
  * - admin      → /admin (panel administrativo)
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function defaultRouteFor(role) {
   if (role === 'operario') return '/operator';
   if (role === 'admin') return '/admin';
