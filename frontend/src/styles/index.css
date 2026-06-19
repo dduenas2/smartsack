@@ -1,0 +1,87 @@
+/*
+ * index.css — Estilos globales de SmartSack (tema claro Smurfit Kappa).
+ *
+ * Fondo claro (#f4f7fb) con grid navy translúcido. Header navy oscuro,
+ * superficies blancas. Tipografía Space Grotesk + JetBrains Mono.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    font-family: 'Space Grotesk', Inter, system-ui, sans-serif;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    background-color: #f4f7fb;
+    background-image:
+      radial-gradient(1100px 600px at 90% -10%, rgba(8, 178, 255, 0.08), transparent 60%),
+      radial-gradient(900px 500px at -10% 100%, rgba(0, 32, 91, 0.05), transparent 60%);
+    color: #00205B;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cdd9e6;
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #b6c5d6;
+  }
+
+  input,
+  textarea,
+  select {
+    color-scheme: light;
+  }
+}
+
+@layer components {
+  /* Cuadrícula sutil navy sobre fondo claro. */
+  .bg-grid {
+    background-image:
+      linear-gradient(rgba(0, 32, 91, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 32, 91, 0.05) 1px, transparent 1px);
+    background-size: 32px 32px;
+    background-position: -1px -1px;
+  }
+
+  /* Superficie tipo "tarjeta corporativa" — blanca con borde fino y sombra. */
+  .panel {
+    background: #ffffff;
+    border: 1px solid #dbe4ee;
+    border-radius: 14px;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 1px 2px rgba(0, 32, 91, 0.05);
+  }
+
+  /* Header navy del top bar (color de marca Smurfit Kappa). */
+  .navy-header {
+    background: linear-gradient(180deg, #00205B 0%, #001a4d 100%);
+    border-bottom: 1px solid rgba(8, 178, 255, 0.25);
+  }
+
+  /* Etiqueta tipográfica de cabecera. */
+  .label-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #64748b;
+  }
+
+  .mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}

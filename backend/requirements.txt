@@ -1,0 +1,61 @@
+# =============================================================================
+# requirements.txt — Dependencias Python del backend SmartSack
+# -----------------------------------------------------------------------------
+# Instalar con:
+#   pip install -r requirements.txt
+# Versiones fijadas para reproducibilidad. Probadas con Python 3.11+.
+# =============================================================================
+
+# ----- API y servidor -----
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
+
+# ----- Base de datos -----
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.10
+alembic==1.14.0
+
+# ----- Validación y configuración -----
+pydantic==2.10.4
+pydantic-settings==2.7.0
+
+# ----- Autenticación -----
+pyjwt==2.10.1
+# passlib 1.7.4 es incompatible con bcrypt>=5.0 (issue conocido: detect_wrap_bug
+# usa un password >72 bytes que rompe en bcrypt 5). Fijamos bcrypt 4.x.
+passlib==1.7.4
+bcrypt==4.2.1
+
+# ----- Caché Redis -----
+redis==5.2.1
+
+# ----- WebSockets (los trae Starlette/FastAPI, websockets para compatibilidad) -----
+websockets==14.1
+
+# ----- ETL / Procesamiento de datos -----
+# numpy<2 lo exige langchain 0.3.x; 1.26.4 es la última 1.x estable y la
+# soportan pandas, scikit-learn, xgboost, matplotlib y seaborn.
+pandas==2.2.3
+numpy==1.26.4
+
+# ----- Machine Learning -----
+scikit-learn==1.6.0
+xgboost==3.2.0
+joblib==1.4.2
+matplotlib==3.10.0
+seaborn==0.13.2
+
+# ----- IA Generativa (chatbot) -----
+anthropic==0.42.0
+langchain==0.3.13
+langchain-anthropic==0.3.1
+
+# ----- HTTP cliente / utilidades -----
+httpx==0.28.1
+python-dotenv==1.0.1
+
+# ----- Testing -----
+pytest==8.3.4
+pytest-asyncio==0.25.0
+pytest-cov==6.0.0

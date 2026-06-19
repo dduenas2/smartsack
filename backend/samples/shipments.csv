@@ -1,0 +1,6 @@
+order_number,shipped_at,destination,quantity_shipped,carrier
+OP-2026-900001,2026-05-07T02:00:00,Barranquilla Port,11800,TCC
+OP-2026-900002,2026-05-07T14:00:00,Bogotá CD,11800,DHL
+OP-2026-900004,2026-05-08T14:00:00,Lima PE,9500,Coordinadora
+OP-2026-900005,2026-05-09T02:00:00,Lima PE,11800,Servientrega
+OP-2026-900000,no-es-fecha,Bogotá CD,5000,TCC

@@ -1,0 +1,12 @@
+order_number,product_type,product_description,quantity_ordered,machine_code,planned_start,planned_end,priority
+OP-2026-900000,Saco fertilizante 50kg,Lote 1 de prueba ETL,10000,IMP-01,2026-05-05T06:00:00,2026-05-05T16:00:00,normal
+OP-2026-900001,Saco cemento 25kg,Lote 2 de prueba ETL,5000,FON-01,2026-05-05T14:00:00,2026-05-05T21:00:00,urgent
+OP-2026-900002,Saco harina 25kg,Lote 3 de prueba ETL,20000,TUB-02,2026-05-05T22:00:00,2026-05-06T10:00:00,urgent
+OP-2026-900003,Saco fertilizante 50kg,Lote 4 de prueba ETL,20000,IMP-02,2026-05-06T06:00:00,2026-05-06T13:00:00,high
+OP-2026-900004,Saco harina 25kg,Lote 5 de prueba ETL,10000,IMP-01,2026-05-06T14:00:00,2026-05-07T00:00:00,urgent
+OP-2026-900005,Saco cemento 25kg,Lote 6 de prueba ETL,20000,FON-02,2026-05-06T22:00:00,2026-05-07T12:00:00,low
+OP-2026-900006,Saco fertilizante 25kg,Lote 7 de prueba ETL,5000,EMP-02,2026-05-07T06:00:00,2026-05-07T21:00:00,high
+OP-2026-900007,Saco cemento 50kg,Lote 8 de prueba ETL,12000,TUB-01,2026-05-07T14:00:00,2026-05-08T00:00:00,urgent
+OP-2026-900000,Saco fertilizante 50kg,Lote 1 de prueba ETL,10000,IMP-01,2026-05-05T06:00:00,2026-05-05T16:00:00,normal
+OP-2026-999998,Saco cemento 50kg,Fila intencionalmente inválida,5000,TUB-01,2026-05-10T10:00:00,2026-05-10T08:00:00,normal
+OP-2026-999999,Saco cal 25kg,Cantidad no numérica,ABC,IMP-01,2026-05-12T06:00:00,2026-05-12T18:00:00,normal

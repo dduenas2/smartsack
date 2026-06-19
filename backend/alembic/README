@@ -1,0 +1,9 @@
+Migraciones de Alembic para SmartSack.
+
+Comandos habituales (ejecutar dentro del contenedor backend):
+
+    docker compose exec backend alembic revision --autogenerate -m "mensaje"
+    docker compose exec backend alembic upgrade head
+    docker compose exec backend alembic downgrade -1
+    docker compose exec backend alembic current
+    docker compose exec backend alembic history

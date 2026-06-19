@@ -1,0 +1,142 @@
+# =============================================================================
+# docker-compose.yml — Orquestación de servicios de SmartSack
+# -----------------------------------------------------------------------------
+# Levanta todo el stack de desarrollo:
+#   - postgres : Base de datos relacional principal
+#   - redis    : Caché en memoria del estado de máquinas
+#   - backend  : API FastAPI + WebSockets
+#   - frontend : SPA React (servida por Vite en dev, build estático en prod)
+#   - nginx    : Reverse proxy que unifica frontend y backend en el puerto 80
+#
+# Comandos útiles:
+#   docker compose up -d              # Levantar todo en background
+#   docker compose logs -f backend    # Ver logs del backend
+#   docker compose down               # Detener todo
+#   docker compose down -v            # Detener y borrar volúmenes (resetea BD)
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16 — Base de datos principal
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: smartsack_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: ${TZ}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - smartsack_net
+
+  # ---------------------------------------------------------------------------
+  # Redis 7 — Caché de estado de máquinas (lectura ultra rápida del Digital Twin)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: smartsack_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - smartsack_net
+
+  # ---------------------------------------------------------------------------
+  # Backend FastAPI — API REST + WebSockets
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: smartsack_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      # Bind mount para hot-reload en desarrollo. Quitar en producción.
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - smartsack_net
+
+  # ---------------------------------------------------------------------------
+  # Frontend React + Vite — Servidor de desarrollo
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: smartsack_frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+      VITE_WS_BASE_URL: ${VITE_WS_BASE_URL}
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      # Volumen anónimo para que node_modules dentro del contenedor no
+      # sea sobrescrito por el bind mount del host.
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - smartsack_net
+
+  # ---------------------------------------------------------------------------
+  # Nginx — Reverse proxy: unifica frontend + backend en puerto 80
+  # ---------------------------------------------------------------------------
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: smartsack_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - smartsack_net
+
+# -----------------------------------------------------------------------------
+# Volúmenes persistentes
+# -----------------------------------------------------------------------------
+volumes:
+  postgres_data:
+    name: smartsack_postgres_data
+  redis_data:
+    name: smartsack_redis_data
+
+# -----------------------------------------------------------------------------
+# Red interna compartida por todos los servicios
+# -----------------------------------------------------------------------------
+networks:
+  smartsack_net:
+    name: smartsack_net
+    driver: bridge
