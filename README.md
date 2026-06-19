@@ -1,6 +1,6 @@
 # SmartSack
 
-[![CI](https://github.com/TU-USUARIO/smartsack/actions/workflows/ci.yml/badge.svg)](https://github.com/TU-USUARIO/smartsack/actions/workflows/ci.yml)
+[![CI](https://github.com/dduenas2/smartsack/actions/workflows/ci.yml/badge.svg)](https://github.com/dduenas2/smartsack/actions/workflows/ci.yml)
 
 > Plataforma web inteligente para la **gestión de producción** en plantas de fabricación de sacos de papel.
 >
@@ -195,12 +195,12 @@ modelo de ML tampoco se entrena en CI; los tests de predicción que dependen del
 El workflow ya está listo en el repositorio. Solo hay que subirlo a GitHub:
 
 ```bash
-git remote add origin git@github.com:TU-USUARIO/smartsack.git
+git remote add origin git@github.com:dduenas2/smartsack.git
 git push -u origin main
 ```
 
 Desde el primer push, GitHub Actions ejecuta el pipeline automáticamente y el
-badge de estado del encabezado refleja el resultado. Sustituye `TU-USUARIO` por
+badge de estado del encabezado refleja el resultado. Sustituye `dduenas2` por
 tu usuario u organización de GitHub (en el badge y en el comando de arriba).
 
 ---
