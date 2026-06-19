@@ -132,8 +132,10 @@ curl http://localhost/api/health
 ```bash
 docker compose logs -f backend                              # Logs del backend
 docker compose logs -f frontend                             # Logs del frontend
-docker compose exec backend pytest                          # 134 tests del backend
-docker compose exec frontend npm run test                   # 17 tests del frontend (Vitest)
+docker compose exec backend pytest                          # 187 tests del backend
+docker compose exec frontend npm run test                   # 30 tests del frontend (Vitest)
+docker compose exec frontend npm run lint                   # ESLint (flat config)
+(cd frontend/e2e && npm test)                               # 12 tests E2E (Playwright, contra el stack)
 docker compose exec backend alembic upgrade head            # Aplicar migraciones
 docker compose exec backend python -m scripts.seed          # Cargar datos demo (8 máquinas, 6 meses de historia)
 docker compose exec backend python -m scripts.generate_sample_csvs  # Crear CSVs de ejemplo en /app/samples/
@@ -160,9 +162,11 @@ docker compose down -v                                      # Detener y borrar l
 
 ```bash
 docker compose exec backend python -m ml.train         # Entrena Random Forest + XGBoost, guarda en ml/models/
-docker compose exec backend python -m ml.evaluate      # Métricas detalladas + matriz de confusión
-docker compose exec backend python -m ml.predict_all   # Genera predicciones para todas las órdenes activas
+docker compose exec backend python -m ml.train --quick  # Variante con grid reducido (más rápida)
 ```
+
+> Las predicciones en runtime las sirve la API (`/api/predictions/...`): el
+> servicio carga el modelo entrenado de `ml/models/` de forma perezosa.
 
 ### Cargar datos por ETL
 
@@ -229,8 +233,8 @@ tu usuario u organización de GitHub (en el badge y en el comando de arriba).
 | 6    | Vista operario y vista supervisor (Digital Twin con WebSockets)               | ✅ Listo  |
 | 7    | Cálculo de OEE + dashboard de KPIs (scrap Pareto, yield, WIP)                 | ✅ Listo  |
 | 8    | Motor de ML (XGBoost) + predicciones proactivas                               | ✅ Listo  |
-| 9    | Chatbot con API de Claude + LangChain + function calling (8 tools)            | ✅ Listo  |
-| 10   | Pruebas (134 backend + 17 frontend), documentación, despliegue                | ✅ Listo  |
+| 9    | Chatbot con API de Claude + LangChain + function calling (9 tools)            | ✅ Listo  |
+| 10   | Pruebas (187 backend + 30 Vitest + 12 E2E) + CI (GitHub Actions), docs        | ✅ Listo  |
 
 ---
 
