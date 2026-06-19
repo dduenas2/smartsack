@@ -68,6 +68,10 @@ Auth is JWT (`middleware/auth.py`): `get_current_user` decodes the Bearer token 
 
 Two modes, transparent to the frontend. **LLM mode** (valid `ANTHROPIC_API_KEY`): LangChain + `ChatAnthropic` function-calling — the model picks a tool, the backend runs it against the DB, the model writes the Spanish answer. **Fallback mode** (no key / LLM error): keyword heuristic router mapping the question to a tool with a pre-formatted response — keeps demos working without credentials. Conversation is **stateless**: the frontend sends full `history` each call; tool-calling is capped at `MAX_TOOL_ITERATIONS = 4`. Tools in `chat/tools.py` each take a `Session` + typed args and return JSON-serializable dicts; their `TOOL_SCHEMAS` are shared by both modes.
 
+### ML delay prediction (`ml/`, `services/prediction_service.py`)
+
+`ml/features.py` is the **single source of truth for feature engineering**, shared by training (`ml/train.py`), the notebook, and inference — change the 11-column feature set or the `is_delayed` label definition there, not in three places. `ml/train.py` writes `ml/models/delay_predictor.joblib` + a `.manifest.json`. At runtime `prediction_service.py` lazy-loads that bundle, caches it in memory, and exposes `reload_model()` to pick up a freshly trained model without restarting. If the joblib doesn't exist yet, prediction endpoints surface an error telling the user to run `python -m ml.train` first — so a fresh checkout has no model until trained.
+
 ### Frontend (`frontend/src/`)
 
 React 18 + Vite + Tailwind + Recharts SPA. `App.jsx` defines role-gated routes wrapped in `AuthContext` / `ProtectedRoute` (`/operator` → operario, `/supervisor` → supervisor+admin, `/admin` → admin, `/dashboard` `/chat` → any authenticated). `api/client.js` is the shared axios instance; per-domain modules in `api/` mirror the backend routers. `VITE_API_BASE_URL=/api` and `VITE_WS_BASE_URL=/ws` route through Nginx.
