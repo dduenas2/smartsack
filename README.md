@@ -1,5 +1,7 @@
 # SmartSack
 
+[![CI](https://github.com/TU-USUARIO/smartsack/actions/workflows/ci.yml/badge.svg)](https://github.com/TU-USUARIO/smartsack/actions/workflows/ci.yml)
+
 > Plataforma web inteligente para la **gestión de producción** en plantas de fabricación de sacos de papel.
 >
 > Trabajo de grado — Ingeniería de Software, **Politécnico Grancolombiano**.
@@ -169,6 +171,37 @@ Los CSVs viven en `backend/samples/` y se pueden subir desde:
 - **UI**: `http://localhost/etl` (rol admin/supervisor)
 - **API**: `POST /api/etl/upload` (form-data: `file`, `kind`)
 - **Plantillas**: `GET /api/etl/sample-csv/{kind}` para descargar la cabecera vacía.
+
+---
+
+## Integración Continua (CI)
+
+El repositorio incluye un pipeline de **GitHub Actions** (`.github/workflows/ci.yml`)
+que se ejecuta en cada `push` a `main`, en cada *pull request* y de forma manual
+(`workflow_dispatch`). Valida automáticamente:
+
+| Job                | Qué valida                                                                                                                          |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `frontend-quality` | ESLint (flat config) + Vitest (pruebas de componentes React).                                                                     |
+| `integration`      | Levanta el stack completo con Docker Compose, migra y siembra la BD, corre los tests del backend (Pytest) y los 4 flujos E2E (Playwright) contra Nginx. |
+
+El chatbot corre en **modo fallback** (sin `ANTHROPIC_API_KEY`), que es justo lo
+que verifican las pruebas E2E: **el CI no requiere ningún secret para pasar**. El
+modelo de ML tampoco se entrena en CI; los tests de predicción que dependen del
+`.joblib` se saltan automáticamente (`pytest.skipif`).
+
+### Cómo activarlo
+
+El workflow ya está listo en el repositorio. Solo hay que subirlo a GitHub:
+
+```bash
+git remote add origin git@github.com:TU-USUARIO/smartsack.git
+git push -u origin main
+```
+
+Desde el primer push, GitHub Actions ejecuta el pipeline automáticamente y el
+badge de estado del encabezado refleja el resultado. Sustituye `TU-USUARIO` por
+tu usuario u organización de GitHub (en el badge y en el comando de arriba).
 
 ---
 
