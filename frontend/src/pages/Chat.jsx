@@ -18,7 +18,10 @@ const SUGGESTIONS = [
   '¿Qué máquina tiene más paradas hoy?',
   '¿Cuál es el OEE de la planta?',
   '¿Qué alertas de retraso hay?',
-  '¿Cuál es el OEE de TUB-01 en la última semana?',
+  '¿Cuánto scrap hay en TUB-01 esta semana?',
+  '¿Cuál es el yield de Fondeo este mes?',
+  '¿Qué tengo en proceso ahora mismo?',
+  '¿Cuál es el cuello de botella de la planta?',
 ];
 
 const TOOL_LABEL = {
@@ -27,6 +30,10 @@ const TOOL_LABEL = {
   get_order_info: 'orden',
   get_oee_data: 'OEE',
   get_alerts: 'alertas ML',
+  get_scrap_summary: 'scrap',
+  get_yield_summary: 'yield',
+  get_wip_status: 'WIP',
+  get_bottleneck_analysis: 'cuello de botella',
 };
 
 export default function Chat() {

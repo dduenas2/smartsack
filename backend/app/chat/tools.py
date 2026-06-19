@@ -17,13 +17,14 @@ from __future__ import annotations
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import and_, desc, func, or_, select
+from sqlalchemy import and_, case, desc, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models import (
     EventType,
     Machine,
     MachineStatus,
+    MachineType,
     MLPrediction,
     OEERecord,
     OperationStatus,
@@ -556,11 +557,21 @@ def get_yield_summary(
     *,
     days_back: int = 6,
     machine_code: Optional[str] = None,
+    operation_type: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Calcula yield = quantity_out / quantity_in por máquina sobre operaciones
     COMPLETED en la ventana. Identifica cuellos de botella de calidad.
     EMP siempre da yield ≈ 1.0 (no genera scrap).
+
+    Filtros opcionales:
+      · machine_code: una máquina concreta (ej. "FON-01").
+      · operation_type: una ETAPA de la ruta. El modelo no guarda un "tipo de
+        operación" propio: la etapa se deriva del TIPO DE MÁQUINA
+        (`machine.type`). Por eso operation_type acepta un valor de MachineType
+        (impresora/tubuladora/fondadora/empacadora) y agrega TODAS las máquinas
+        de esa etapa — ej. "fondadora" combina FON-01 + FON-02. Cuando se usa,
+        la respuesta añade un bloque `aggregate` con el yield combinado.
     """
     start_dt, end_dt = _date_window(days_back=days_back)
 
@@ -587,6 +598,20 @@ def get_yield_summary(
             return {"error": f"Máquina '{machine_code}' no existe"}
         q = q.where(OrderOperation.machine_id == target.id)
 
+    resolved_type: Optional[MachineType] = None
+    if operation_type:
+        try:
+            resolved_type = MachineType(operation_type)
+        except ValueError:
+            return {
+                "error": (
+                    f"operation_type='{operation_type}' inválido "
+                    f"(válidos: {[t.value for t in MachineType]})"
+                )
+            }
+        type_ids = [m.id for m in machines if m.type == resolved_type]
+        q = q.where(OrderOperation.machine_id.in_(type_ids))
+
     items = []
     for row in db.execute(q).all():
         m = by_id.get(row.machine_id)
@@ -608,11 +633,28 @@ def get_yield_summary(
         )
     items.sort(key=lambda x: (x["yield_ratio"] is None, x["yield_ratio"] or 0))
 
+    # Agregado por etapa: combina todas las máquinas del tipo solicitado.
+    aggregate = None
+    if resolved_type is not None and items:
+        tot_in = sum(i["quantity_in"] for i in items)
+        tot_out = sum(i["quantity_out"] for i in items)
+        agg_ratio = round(tot_out / tot_in, 4) if tot_in > 0 else None
+        aggregate = {
+            "operation_type": resolved_type.value,
+            "quantity_in": tot_in,
+            "quantity_out": tot_out,
+            "yield_ratio": agg_ratio,
+            "yield_pct": round(agg_ratio * 100, 2) if agg_ratio is not None else None,
+            "machines_count": len(items),
+        }
+
     bottleneck = items[0] if items and items[0].get("yield_ratio") is not None else None
     return {
         "days_back": days_back,
         "machine_code": machine_code,
+        "operation_type": operation_type,
         "items": items,
+        "aggregate": aggregate,
         "bottleneck": bottleneck,
     }
 
@@ -691,6 +733,104 @@ def get_wip_status(db: Session) -> Dict[str, Any]:
 
 
 # -----------------------------------------------------------------------------
+# Tool 9 — Análisis de cuello de botella (throughput)
+# -----------------------------------------------------------------------------
+def get_bottleneck_analysis(db: Session, *, days_back: int = 6) -> Dict[str, Any]:
+    """
+    Identifica el cuello de botella de THROUGHPUT de la planta.
+
+    A diferencia del "cuello de calidad" de get_yield_summary (la máquina que
+    más rechaza), aquí buscamos la máquina que más ACUMULA trabajo en cola
+    frente a su capacidad demostrada.
+
+    Para cada máquina:
+      · cola actual (snapshot) = operaciones PENDING + READY asignadas.
+      · ready_units = sum(quantity_in) de las READY (las PENDING aún no tienen
+        quantity_in poblado porque la etapa previa no ha cerrado).
+      · completadas = operaciones COMPLETED con actual_end en la ventana
+        (capacidad histórica demostrada).
+      · backlog_ratio = cola / max(completadas, 1).
+
+    El cuello es la máquina con mayor backlog_ratio: mucha cola frente a poca
+    capacidad. Una máquina estancada (cola > 0 y 0 completadas) eleva su ratio
+    al tamaño de la cola, lo que la delata aunque produzca poco en absoluto.
+    """
+    start_dt, end_dt = _date_window(days_back=days_back)
+
+    # Cola actual (snapshot, SIN ventana temporal): PENDING + READY por máquina.
+    queue_rows = db.execute(
+        select(
+            OrderOperation.machine_id,
+            func.count().label("waiting"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            OrderOperation.status == OperationStatus.READY,
+                            OrderOperation.quantity_in,
+                        ),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("ready_units"),
+        )
+        .where(
+            OrderOperation.status.in_(
+                [OperationStatus.PENDING, OperationStatus.READY]
+            )
+        )
+        .group_by(OrderOperation.machine_id)
+    ).all()
+
+    # Operaciones completadas en la ventana (capacidad demostrada).
+    done_rows = db.execute(
+        select(OrderOperation.machine_id, func.count().label("done"))
+        .where(OrderOperation.status == OperationStatus.COMPLETED)
+        .where(OrderOperation.actual_end.is_not(None))
+        .where(OrderOperation.actual_end >= start_dt)
+        .where(OrderOperation.actual_end < end_dt)
+        .group_by(OrderOperation.machine_id)
+    ).all()
+
+    queue_by_id = {r.machine_id: r for r in queue_rows}
+    done_by_id = {r.machine_id: int(r.done or 0) for r in done_rows}
+
+    machines = list(db.scalars(select(Machine).order_by(Machine.code)))
+    items: List[Dict[str, Any]] = []
+    for m in machines:
+        q = queue_by_id.get(m.id)
+        waiting = int(q.waiting) if q else 0
+        ready_units = int(q.ready_units) if q else 0
+        done = done_by_id.get(m.id, 0)
+        backlog_ratio = round(waiting / max(done, 1), 3)
+        items.append(
+            {
+                "machine_code": m.code,
+                "machine_type": m.type.value,
+                "waiting_operations": waiting,
+                "ready_units": ready_units,
+                "completed_operations": done,
+                "backlog_ratio": backlog_ratio,
+            }
+        )
+
+    # Mayor backlog_ratio primero; desempate por tamaño de cola.
+    items.sort(
+        key=lambda x: (x["backlog_ratio"], x["waiting_operations"]), reverse=True
+    )
+
+    # Sin cola no hay cuello: el bottleneck debe tener al menos una en espera.
+    bottleneck = next((it for it in items if it["waiting_operations"] > 0), None)
+
+    return {
+        "days_back": days_back,
+        "machines": items,
+        "bottleneck": bottleneck,
+    }
+
+
+# -----------------------------------------------------------------------------
 # Registro central + schemas para el LLM
 # -----------------------------------------------------------------------------
 TOOL_REGISTRY: Dict[str, Any] = {
@@ -702,6 +842,7 @@ TOOL_REGISTRY: Dict[str, Any] = {
     "get_scrap_summary": get_scrap_summary,
     "get_yield_summary": get_yield_summary,
     "get_wip_status": get_wip_status,
+    "get_bottleneck_analysis": get_bottleneck_analysis,
 }
 
 # Schemas en formato Anthropic tools / OpenAI function calling.
@@ -807,10 +948,12 @@ TOOL_SCHEMAS: List[Dict[str, Any]] = [
     {
         "name": "get_yield_summary",
         "description": (
-            "Yield (rendimiento) por máquina = quantity_out / quantity_in sobre "
-            "operaciones cerradas en la ventana. Identifica cuellos de botella "
-            "de calidad: la máquina con yield más bajo es la que más rechaza. "
-            "EMP siempre da yield ≈ 1.0 (no genera scrap)."
+            "Yield (rendimiento) = quantity_out / quantity_in sobre operaciones "
+            "cerradas en la ventana. Identifica cuellos de botella de CALIDAD: "
+            "la máquina (o etapa) con yield más bajo es la que más rechaza. "
+            "Filtra por máquina (machine_code) o por ETAPA de la ruta "
+            "(operation_type: impresora/tubuladora/fondadora/empacadora), que "
+            "agrega todas las máquinas de esa etapa. EMP da yield ≈ 1.0."
         ),
         "input_schema": {
             "type": "object",
@@ -821,6 +964,35 @@ TOOL_SCHEMAS: List[Dict[str, Any]] = [
                     "default": 6,
                 },
                 "machine_code": {"type": "string"},
+                "operation_type": {
+                    "type": "string",
+                    "description": (
+                        "Etapa de la ruta: impresora, tubuladora, fondadora o "
+                        "empacadora. Agrega todas las máquinas de esa etapa."
+                    ),
+                    "enum": ["impresora", "tubuladora", "fondadora", "empacadora"],
+                },
+            },
+        },
+    },
+    {
+        "name": "get_bottleneck_analysis",
+        "description": (
+            "Cuello de botella de THROUGHPUT (no de calidad): la máquina que "
+            "más acumula operaciones en cola (PENDING+READY) frente a su "
+            "capacidad histórica demostrada (completadas en la ventana). "
+            "Devuelve el ranking por backlog_ratio y la máquina cuello. Útil "
+            "para '¿cuál es el cuello de botella de la planta?' o '¿qué máquina "
+            "está más saturada / es la más lenta?'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "days_back": {
+                    "type": "integer",
+                    "description": "Ventana para la capacidad histórica (default 6).",
+                    "default": 6,
+                },
             },
         },
     },
@@ -847,4 +1019,5 @@ __all__ = [
     "get_scrap_summary",
     "get_yield_summary",
     "get_wip_status",
+    "get_bottleneck_analysis",
 ]

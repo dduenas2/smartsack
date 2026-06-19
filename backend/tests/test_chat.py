@@ -17,6 +17,7 @@ import pytest
 
 from app.chat.tools import (
     get_alerts,
+    get_bottleneck_analysis,
     get_machine_status,
     get_oee_data,
     get_order_info,
@@ -30,6 +31,7 @@ from app.services.chat_service import (
     ChatMessage,
     _detect_days_back,
     _detect_machine_code,
+    _detect_operation_type,
     _detect_order_number,
     _route_keywords,
     chat,
@@ -125,6 +127,73 @@ def test_get_wip_status_returns_all_machines(db_session) -> None:
     assert r["total_in_progress_operations"] >= 0
 
 
+def test_get_yield_summary_by_operation_type_aggregates(db_session) -> None:
+    """operation_type agrega todas las máquinas de una etapa (machine.type)."""
+    r = get_yield_summary(db_session, days_back=120, operation_type="fondadora")
+    assert r["operation_type"] == "fondadora"
+    # Todos los items son de la etapa solicitada.
+    for it in r["items"]:
+        assert it["machine_type"] == "fondadora"
+    # Si hubo datos, el agregado combina las máquinas de la etapa.
+    if r["items"]:
+        agg = r["aggregate"]
+        assert agg is not None
+        assert agg["operation_type"] == "fondadora"
+        assert agg["machines_count"] == len(r["items"])
+        assert agg["quantity_in"] == sum(i["quantity_in"] for i in r["items"])
+        assert agg["quantity_out"] == sum(i["quantity_out"] for i in r["items"])
+
+
+def test_get_yield_summary_invalid_operation_type_returns_error(db_session) -> None:
+    r = get_yield_summary(db_session, operation_type="zzz-no-existe")
+    assert "error" in r
+
+
+def test_get_yield_summary_no_operation_type_is_backward_compatible(db_session) -> None:
+    """Sin operation_type, la respuesta mantiene su forma previa (aggregate None)."""
+    r = get_yield_summary(db_session, days_back=30)
+    assert r["operation_type"] is None
+    assert r["aggregate"] is None
+    assert "items" in r
+
+
+def test_get_bottleneck_analysis_structure(db_session) -> None:
+    r = get_bottleneck_analysis(db_session, days_back=30)
+    assert "machines" in r and "bottleneck" in r
+    assert len(r["machines"]) >= len(SEED_MACHINE_CODES)
+    # Ordenado descendente por backlog_ratio.
+    ratios = [m["backlog_ratio"] for m in r["machines"]]
+    assert ratios == sorted(ratios, reverse=True)
+    for m in r["machines"]:
+        assert m["waiting_operations"] >= 0
+        assert m["completed_operations"] >= 0
+        assert m["backlog_ratio"] >= 0
+
+
+def test_get_bottleneck_analysis_ratio_is_queue_over_capacity(db_session) -> None:
+    r = get_bottleneck_analysis(db_session, days_back=30)
+    for m in r["machines"]:
+        expected = round(
+            m["waiting_operations"] / max(m["completed_operations"], 1), 3
+        )
+        assert m["backlog_ratio"] == expected
+
+
+def test_get_bottleneck_analysis_bottleneck_has_queue(db_session) -> None:
+    """El cuello, si existe, es la máquina con mayor ratio que tiene cola."""
+    r = get_bottleneck_analysis(db_session, days_back=30)
+    bn = r["bottleneck"]
+    if bn is not None:
+        assert bn["waiting_operations"] > 0
+        first_with_queue = next(
+            (m for m in r["machines"] if m["waiting_operations"] > 0), None
+        )
+        assert bn["machine_code"] == first_with_queue["machine_code"]
+    else:
+        # Sin cuello → ninguna máquina tiene cola.
+        assert all(m["waiting_operations"] == 0 for m in r["machines"])
+
+
 # =============================================================================
 # Helpers de detección (fallback)
 # =============================================================================
@@ -173,13 +242,33 @@ def test_detect_order_number_normalizes() -> None:
         ("cuál máquina genera más scrap", "get_scrap_summary"),
         ("desperdicio por razón esta semana", "get_scrap_summary"),
         ("yield por máquina la última semana", "get_yield_summary"),
-        ("cuello de botella en calidad", "get_yield_summary"),
+        ("rendimiento de operación de fondeo", "get_yield_summary"),
+        # "cuello de botella" es término técnico de throughput → bottleneck,
+        # aunque la frase mencione "calidad" (cambio aprobado en Pendiente 2).
+        ("cuello de botella en calidad", "get_bottleneck_analysis"),
+        ("cuál es el cuello de botella de la planta", "get_bottleneck_analysis"),
+        ("qué máquina es la más lenta", "get_bottleneck_analysis"),
         ("cuántos sacos están en cola ahora", "get_wip_status"),
+        ("qué tengo en proceso ahora mismo", "get_wip_status"),
         ("WIP actual", "get_wip_status"),
     ],
 )
 def test_route_keywords(text, tool) -> None:
     assert _route_keywords(text) == tool
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("yield de fondeo este mes", "fondadora"),
+        ("rendimiento de impresión", "impresora"),
+        ("cómo va el tubulado", "tubuladora"),
+        ("yield de la etapa de empaque", "empacadora"),
+        ("planta general", None),
+    ],
+)
+def test_detect_operation_type(text, expected) -> None:
+    assert _detect_operation_type(text) == expected
 
 
 # =============================================================================
@@ -225,6 +314,19 @@ def test_chat_fallback_yield(db_session) -> None:
 def test_chat_fallback_wip(db_session) -> None:
     r = chat(db_session, message="¿Cuántos sacos están en cola ahora mismo?")
     assert r.tool_calls[0].name == "get_wip_status"
+
+
+def test_chat_fallback_bottleneck(db_session) -> None:
+    r = chat(db_session, message="¿Cuál es el cuello de botella de la planta?")
+    assert r.mode == "fallback"
+    assert r.tool_calls[0].name == "get_bottleneck_analysis"
+
+
+def test_chat_fallback_yield_by_operation(db_session) -> None:
+    r = chat(db_session, message="¿Cuál es el yield de Fondeo este mes?")
+    assert r.tool_calls[0].name == "get_yield_summary"
+    assert r.tool_calls[0].arguments.get("operation_type") == "fondadora"
+    assert r.tool_calls[0].arguments.get("days_back") == 30
 
 
 def test_chat_empty_message_returns_friendly(db_session) -> None:

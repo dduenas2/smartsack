@@ -53,7 +53,14 @@ Contexto del dominio:
 - Planta con 8 máquinas: TUB-01/02 (tubuladoras), IMP-01/02 (impresoras), FON-01/02 (fondadoras), EMP-01/02 (empacadoras).
 - 3 turnos diarios (turno_1: 06-14, turno_2: 14-22, turno_3: 22-06).
 - Productos típicos: sacos de cemento, cal, fertilizante, harina (25kg / 50kg).
+- La ruta de producción son 4 operaciones encadenadas: Impresión → Tubulado → Fondeo → Empaque.
 - OEE = Disponibilidad × Rendimiento × Calidad. Benchmark mundial ≥ 85%.
+
+Herramientas analíticas a nivel de operación (úsalas cuando apliquen):
+- get_scrap_summary: desperdicio (kg) por máquina y razón (Pareto).
+- get_yield_summary: yield out/in por máquina o por etapa (parámetro operation_type: impresora/tubuladora/fondadora/empacadora). Es el cuello de botella de CALIDAD.
+- get_wip_status: trabajo en proceso (IN_PROGRESS + READY) por máquina.
+- get_bottleneck_analysis: cuello de botella de THROUGHPUT (cola PENDING/READY vs. capacidad histórica). Úsala para "cuál es el cuello de botella de la planta".
 """
 
 
@@ -211,8 +218,11 @@ def _llm_chat(db: Session, history: List[ChatMessage], message: str) -> ChatResp
 _KEYWORD_RULES: List[Tuple[List[str], str]] = [
     (["alerta", "alertas", "riesgo", "retraso", "retrasos", "se va a retrasar"], "get_alerts"),
     (["scrap", "desperdicio", "merma", "rechazos", "defecto", "defectos"], "get_scrap_summary"),
-    (["yield", "rendimiento por máquina", "rendimiento por maquina", "eficiencia por máquina", "eficiencia por maquina", "cuello de botella", "out/in"], "get_yield_summary"),
-    (["wip", "trabajo en proceso", "en tránsito", "en transito", "en cola", "cola", "en el piso"], "get_wip_status"),
+    # Cuello de botella de throughput. Va ANTES de yield para que "cuello de
+    # botella" rute aquí y no al yield (que es cuello de *calidad*).
+    (["cuello de botella", "bottleneck", "más lent", "mas lent", "saturad", "saturación", "saturacion"], "get_bottleneck_analysis"),
+    (["yield", "rendimiento por máquina", "rendimiento por maquina", "rendimiento de operación", "rendimiento de operacion", "eficiencia por máquina", "eficiencia por maquina", "out/in"], "get_yield_summary"),
+    (["wip", "work in progress", "trabajo en proceso", "en proceso", "en curso", "en tránsito", "en transito", "en cola", "cola", "en el piso"], "get_wip_status"),
     (["oee", "disponibilidad", "calidad", "eficiencia global"], "get_oee_data"),
     (["paradas", "parada", "incidencia", "incidencias", "stops"], "get_machine_status"),
     (["máquina", "maquina", "estación", "estacion"], "get_machine_status"),
@@ -259,6 +269,28 @@ def _detect_days_back(text: str) -> int:
     if m:
         return int(m.group(1))
     return 0
+
+
+# Sinónimos en español de cada ETAPA → valor de MachineType (machine.type).
+# IMPORTANTE: el modelo no tiene un "tipo de operación" propio; la etapa se
+# identifica por el TIPO DE MÁQUINA que la ejecuta. Por eso "fondeo"/"fondado"
+# mapean a la fondadora, "impresión" a la impresora, etc. Se usan raíces
+# (stems) para tolerar variaciones ("fondeo", "fondado", "fondadora").
+_OPERATION_TYPE_SYNONYMS: List[Tuple[str, List[str]]] = [
+    ("impresora", ["impresión", "impresion", "imprim", "impreso"]),
+    ("tubuladora", ["tubulad", "tubo"]),
+    ("fondadora", ["fonde", "fondad"]),
+    ("empacadora", ["empaqu", "empacad", "empaque"]),
+]
+
+
+def _detect_operation_type(text: str) -> Optional[str]:
+    """Detecta la etapa de la ruta mencionada y la mapea a un MachineType."""
+    t = text.lower()
+    for machine_type, stems in _OPERATION_TYPE_SYNONYMS:
+        if any(s in t for s in stems):
+            return machine_type
+    return None
 
 
 def _route_keywords(text: str) -> str:
@@ -380,6 +412,16 @@ def _format_fallback_reply(tool: str, args: Dict[str, Any], result: Any) -> str:
         items = result.get("items", [])
         if not items:
             return "No hay operaciones cerradas en la ventana para calcular yield."
+        # Si se consultó una etapa concreta (operation_type), encabeza con el
+        # agregado que combina todas sus máquinas.
+        agg = result.get("aggregate")
+        if agg is not None and agg.get("yield_pct") is not None:
+            return (
+                f"Yield de la etapa **{agg['operation_type']}**: "
+                f"{agg['yield_pct']:.2f}% "
+                f"({agg['quantity_out']:,}/{agg['quantity_in']:,} ud, "
+                f"{agg['machines_count']} máquina(s))."
+            )
         bottleneck = result.get("bottleneck")
         head_lines = [
             f"- {i['machine_code']}: {i['yield_pct']:.2f}% "
@@ -411,6 +453,20 @@ def _format_fallback_reply(tool: str, args: Dict[str, Any], result: Any) -> str:
             f"({in_progress} operaciones corriendo, {ready} en cola). "
             f"La máquina más cargada es **{head['machine_code']}** "
             f"con {head['units_total']:,} unidades."
+        )
+    if tool == "get_bottleneck_analysis":
+        bn = result.get("bottleneck")
+        if not bn:
+            return (
+                "No hay operaciones en cola ahora mismo: la planta no tiene "
+                "un cuello de botella de throughput."
+            )
+        return (
+            f"El cuello de botella es **{bn['machine_code']}** ({bn['machine_type']}): "
+            f"{bn['waiting_operations']} operación(es) en cola "
+            f"({bn['ready_units']:,} sacos listos para entrar) frente a "
+            f"{bn['completed_operations']} completadas en la ventana "
+            f"(backlog ratio {bn['backlog_ratio']})."
         )
     return f"Resultado de {tool}:\n{json.dumps(result, ensure_ascii=False, indent=2, default=str)[:500]}"
 
@@ -453,6 +509,11 @@ def _fallback_chat(db: Session, message: str) -> ChatResponse:
         args = {"days_back": days if days > 0 else 6}
         if machine:
             args["machine_code"] = machine
+        op_type = _detect_operation_type(message)
+        if op_type:
+            args["operation_type"] = op_type
+    elif tool == "get_bottleneck_analysis":
+        args = {"days_back": days if days > 0 else 6}
     elif tool == "get_wip_status":
         args = {}
 
