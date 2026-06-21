@@ -79,10 +79,30 @@ smartsack/
 │   ├── package.json
 │   └── src/                # main, App, api, hooks, context, components, pages
 │
+├── docs/                   # Documentación del trabajo de grado (ver abajo)
+│
 └── nginx/                  # Reverse proxy
     ├── Dockerfile
     └── nginx.conf
 ```
+
+---
+
+## Documentación
+
+La carpeta [`docs/`](docs/) reúne la documentación del trabajo de grado:
+
+| Documento | Contenido |
+|---|---|
+| [`Documento_Final.md`](docs/Documento_Final.md) | Cierre del proyecto: resultados, cumplimiento de objetivos, lecciones y conclusiones |
+| [`Manual_Usuario.md`](docs/Manual_Usuario.md) | Manual de usuario (con capturas) |
+| [`Manual_Tecnico.md`](docs/Manual_Tecnico.md) | Manual técnico (despliegue y operación) |
+| [`DATASET.md`](docs/DATASET.md) | Conjunto de datos sintético y su generación |
+| [`Informe_Validacion_ML.md`](docs/Informe_Validacion_ML.md) | Evaluación del modelo de ML |
+| [`Informe_Validacion_E7.md`](docs/Informe_Validacion_E7.md) | Validación consolidada (4 dimensiones) |
+| [`Instrumento_SUS.md`](docs/Instrumento_SUS.md) | Cuestionario de usabilidad (SUS) |
+| [`Instrumento_Impacto_Operativo.md`](docs/Instrumento_Impacto_Operativo.md) | Medición de impacto y satisfacción |
+| [`Guion_Sustentacion.md`](docs/Guion_Sustentacion.md) | Material de apoyo para la defensa |
 
 ---
 
@@ -235,6 +255,9 @@ tu usuario u organización de GitHub (en el badge y en el comando de arriba).
 | 8    | Motor de ML (XGBoost) + predicciones proactivas                               | ✅ Listo  |
 | 9    | Chatbot con API de Claude + LangChain + function calling (9 tools)            | ✅ Listo  |
 | 10   | Pruebas (187 backend + 30 Vitest + 12 E2E) + CI (GitHub Actions), docs        | ✅ Listo  |
+| 11   | Dataset a escala con señal ML + validación E7 (modelo, SUS, impacto)           | ✅ Listo  |
+| 12   | Manuales de usuario y técnico (con capturas)                                   | ✅ Listo  |
+| 13   | Documento final + guion de sustentación                                        | ✅ Listo  |
 
 ---
 
