@@ -26,6 +26,8 @@ requiere instalar nada.
 2. Ingrese su **usuario** y **contraseña**.
 3. El sistema lo llevará automáticamente a la vista correspondiente a su rol.
 
+![Pantalla de inicio de sesión](./capturas/01-login.png)
+
 **Usuarios de demostración** (contraseña `smartsack123`):
 
 | Usuario | Rol |
@@ -48,6 +50,8 @@ Para **cerrar sesión**, use el botón de salida en la barra superior.
 
 Es la pantalla principal del operario. Muestra el estado de **su** máquina y le
 permite registrar lo que sucede.
+
+![Vista de operario](./capturas/02-operario.png)
 
 ### 4.1. Estado de la máquina y operación en curso
 
@@ -85,6 +89,8 @@ se notifica en el acto a los supervisores.
 El supervisor ve el **mapa completo de la planta**: las dos líneas (A y B) con
 sus máquinas en secuencia (Impresora → Tubuladora → Fondadora → Empacadora).
 
+![Digital Twin del supervisor](./capturas/03-supervisor-digital-twin.png)
+
 - Cada máquina aparece **codificada por color** según su estado (en marcha,
   detenida, mantenimiento, libre).
 - La vista se **actualiza en tiempo real**: cuando un operario registra una
@@ -96,6 +102,8 @@ sus máquinas en secuencia (Impresora → Tubuladora → Fondadora → Empacador
 
 Panel de indicadores de gestión, disponible para supervisores y administradores:
 
+![Dashboard de KPIs y OEE](./capturas/04-dashboard.png)
+
 - **OEE** (Disponibilidad × Rendimiento × Calidad) de la planta y por máquina.
 - **Cumplimiento** y volúmenes de producción.
 - **Órdenes retrasadas** y **alertas de retraso** generadas por el motor de
@@ -106,6 +114,8 @@ Panel de indicadores de gestión, disponible para supervisores y administradores
 
 SmartSack incluye un **chatbot** que responde preguntas sobre la producción en
 lenguaje natural. Escriba su pregunta en el cuadro de texto y pulse enviar.
+
+![Asistente conversacional](./capturas/05-chat.png)
 
 Ejemplos de preguntas que entiende:
 
@@ -134,12 +144,16 @@ Supervisores y administradores pueden **cargar archivos CSV** exportados del ERP
 (órdenes, confirmaciones, materiales, despachos) desde la sección de carga de
 datos:
 
+![Carga de datos del ERP (ETL)](./capturas/06-etl.png)
+
 1. Seleccione el tipo de archivo y el CSV correspondiente.
 2. Suba el archivo.
 3. El sistema valida los datos e informa cuántos registros se cargaron y si hubo
    filas con errores (con el detalle de cada una).
 
 ## 10. Administración (solo administrador)
+
+![Panel de administración](./capturas/07-admin.png)
 
 El panel de administración permite gestionar:
 
