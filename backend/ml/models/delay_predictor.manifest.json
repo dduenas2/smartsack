@@ -1,11 +1,11 @@
 {
-  "version": "delay-xgb-20260501232338",
+  "version": "delay-xgb-20260621043455",
   "winner": "xgboost",
-  "trained_at": "2026-05-01T23:23:38.531518+00:00",
+  "trained_at": "2026-06-21T04:34:55.491971+00:00",
   "dataset": {
-    "rows": 3331,
-    "positives": 483,
-    "positive_rate": 0.1450015010507355,
+    "rows": 783,
+    "positives": 239,
+    "positive_rate": 0.3052362707535121,
     "test_size": 0.2,
     "feature_columns": [
       "quantity_ordered",
@@ -42,94 +42,95 @@
   },
   "models": {
     "random_forest": {
-      "best_f1_cv": 0.04370649392369432,
+      "best_f1_cv": 0.5678028028028028,
       "best_params": {
         "class_weight": "balanced",
         "max_depth": 12,
-        "min_samples_leaf": 2,
+        "min_samples_leaf": 4,
         "n_estimators": 120
       },
-      "fit_seconds": 13.9,
+      "fit_seconds": 14.13,
       "test_metrics": {
         "threshold": 0.5,
-        "f1": 0.03669724770642202,
-        "precision": 0.16666666666666666,
-        "recall": 0.020618556701030927,
-        "auc_roc": 0.4771929824561403,
+        "f1": 0.5555555555555556,
+        "precision": 0.5952380952380952,
+        "recall": 0.5208333333333334,
+        "auc_roc": 0.7951070336391437,
         "confusion_matrix": [
           [
-            560,
-            10
+            92,
+            17
           ],
           [
-            95,
-            2
-          ]
-        ],
-        "support_test": 667,
-        "support_positives_test": 97
-      }
-    },
-    "xgboost": {
-      "best_f1_cv": 0.17982631516919304,
-      "best_params": {
-        "learning_rate": 0.1,
-        "max_depth": 4,
-        "n_estimators": 200,
-        "subsample": 0.9
-      },
-      "fit_seconds": 11.45,
-      "test_metrics": {
-        "threshold": 0.5,
-        "f1": 0.2109704641350211,
-        "precision": 0.17857142857142858,
-        "recall": 0.25773195876288657,
-        "auc_roc": 0.5260083197684933,
-        "confusion_matrix": [
-          [
-            455,
-            115
-          ],
-          [
-            72,
+            23,
             25
           ]
         ],
-        "support_test": 667,
-        "support_positives_test": 97
+        "support_test": 157,
+        "support_positives_test": 48
+      }
+    },
+    "xgboost": {
+      "best_f1_cv": 0.5828183519528585,
+      "best_params": {
+        "colsample_bytree": 1.0,
+        "learning_rate": 0.05,
+        "max_depth": 3,
+        "n_estimators": 200,
+        "subsample": 0.8
+      },
+      "fit_seconds": 6.95,
+      "test_metrics": {
+        "threshold": 0.5,
+        "f1": 0.5918367346938775,
+        "precision": 0.58,
+        "recall": 0.6041666666666666,
+        "auc_roc": 0.8367737003058104,
+        "confusion_matrix": [
+          [
+            88,
+            21
+          ],
+          [
+            19,
+            29
+          ]
+        ],
+        "support_test": 157,
+        "support_positives_test": 48
       }
     }
   },
   "feature_importance": {
-    "quantity_ordered": 0.03916776552796364,
-    "planned_duration_hours": 0.04377647489309311,
-    "hour_of_day": 0.03737468644976616,
-    "day_of_week": 0.03797934576869011,
+    "quantity_ordered": 0.1104663535952568,
+    "planned_duration_hours": 0.0,
+    "hour_of_day": 0.07021819055080414,
+    "day_of_week": 0.05912370607256889,
     "is_weekend": 0.0,
-    "machine_concurrent_load": 0.0446813590824604,
-    "machine_delay_rate_30d": 0.04235241189599037,
-    "product_delay_rate_30d": 0.039093583822250366,
-    "product_type__Saco cemento 50kg": 0.04273679107427597,
-    "product_type__Saco cemento 25kg": 0.042639028280973434,
-    "product_type__Saco cal 25kg": 0.03614732250571251,
-    "product_type__Saco fertilizante 25kg": 0.03427913039922714,
-    "product_type__Saco harina 50kg": 0.048756346106529236,
-    "product_type___UNK": 0.023474274203181267,
-    "machine_code__TUB-01": 0.0379391610622406,
-    "machine_code__TUB-02": 0.03700867295265198,
-    "machine_code__IMP-01": 0.033066052943468094,
-    "machine_code__IMP-02": 0.03567689657211304,
-    "machine_code__FON-01": 0.03734738379716873,
-    "machine_code__FON-02": 0.03736943006515503,
-    "machine_code__EMP-01": 0.03782036527991295,
-    "machine_code__EMP-02": 0.034054454416036606,
+    "machine_concurrent_load": 0.04080908000469208,
+    "machine_delay_rate_30d": 0.0457599014043808,
+    "product_delay_rate_30d": 0.06294510513544083,
+    "product_type__Saco cemento 50kg": 0.05763060599565506,
+    "product_type__Saco cemento 25kg": 0.04267263785004616,
+    "product_type__Saco cal 25kg": 0.045118458569049835,
+    "product_type__Saco fertilizante 25kg": 0.08953794836997986,
+    "product_type__Saco harina 50kg": 0.048833027482032776,
+    "product_type___UNK": 0.0,
+    "machine_code__TUB-01": 0.0,
+    "machine_code__TUB-02": 0.0,
+    "machine_code__IMP-01": 0.0,
+    "machine_code__IMP-02": 0.0,
+    "machine_code__FON-01": 0.06774606555700302,
+    "machine_code__FON-02": 0.0,
+    "machine_code__EMP-01": 0.0,
+    "machine_code__EMP-02": 0.0,
     "machine_code___UNK": 0.0,
     "shift__turno_1": 0.0,
-    "shift__turno_2": 0.0366358682513237,
+    "shift__turno_2": 0.034118976444005966,
     "shift__turno_3": 0.0,
-    "priority__low": 0.045803606510162354,
-    "priority__normal": 0.043081559240818024,
-    "priority__high": 0.03169028088450432,
-    "priority__urgent": 0.0400477796792984
+    "priority__low": 0.048028651624917984,
+    "priority__normal": 0.052864689379930496,
+    "priority__high": 0.07922845333814621,
+    "priority__urgent": 0.04489815607666969
   }
 }

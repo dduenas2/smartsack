@@ -31,14 +31,15 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List
 
-# Catálogos coherentes con el seed.
+# Catálogos coherentes con el seed (scripts/seed.py · PRODUCTS_CATALOG) y con
+# el vocabulario de ML (ml/features.py · CATEGORICAL_VOCAB). Mantener esta lista
+# alineada: un product_type fuera del catálogo se mapea a "_UNK" en inferencia.
 PRODUCT_TYPES = [
     "Saco cemento 50kg",
     "Saco cemento 25kg",
-    "Saco cal 25kg",
-    "Saco fertilizante 50kg",
+    "Saco harina 50kg",
     "Saco fertilizante 25kg",
-    "Saco harina 25kg",
+    "Saco cal 25kg",
 ]
 MACHINE_CODES = ["TUB-01", "TUB-02", "IMP-01", "IMP-02", "FON-01", "FON-02", "EMP-01", "EMP-02"]
 PRIORITIES = ["low", "normal", "high", "urgent"]
