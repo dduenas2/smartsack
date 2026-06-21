@@ -32,11 +32,12 @@ from __future__ import annotations
 
 import argparse
 import logging
+import math
 import random
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 
-from sqlalchemy import delete, select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
@@ -168,6 +169,73 @@ NOMINAL_YIELD: Dict[MachineType, Tuple[float, float]] = {
 
 
 # -----------------------------------------------------------------------------
+# Modelo de riesgo de retraso (SEÑAL latente para el motor ML)
+# -----------------------------------------------------------------------------
+# El retraso de una orden NO es aleatorio: es una función latente de sus
+# características (prioridad, producto, línea, cantidad, turno, fin de semana,
+# carga concurrente) más ruido. El motor ML debe APRENDER esta función a
+# partir de las features de `ml/features.py`. Los coeficientes están en
+# log-odds (escala logit) y calibrados para una tasa global de retraso ~22%
+# y un AUC realista (~0.80-0.86), no perfecto.
+DELAY_INTERCEPT = -2.9
+
+PRIORITY_DELAY_LOGIT: Dict[OrderPriority, float] = {
+    OrderPriority.LOW: -0.7,
+    OrderPriority.NORMAL: 0.0,
+    OrderPriority.HIGH: 1.0,
+    OrderPriority.URGENT: 1.8,   # urgentes se encajan a la fuerza → más retraso
+}
+# Riesgo por tipo de producto (complejidad de fabricación). Las claves deben
+# coincidir con PRODUCTS_CATALOG y con CATEGORICAL_VOCAB de ml/features.py.
+PRODUCT_DELAY_LOGIT: Dict[str, float] = {
+    "Saco cemento 50kg": 0.8,       # pesado, multipliego
+    "Saco cemento 25kg": -0.6,
+    "Saco harina 50kg": 0.5,
+    "Saco fertilizante 25kg": 1.2,  # barrera laminada BOPP, más delicado
+    "Saco cal 25kg": 0.0,
+}
+# La línea B corre más caliente (máquinas algo más antiguas).
+LINE_DELAY_LOGIT: Dict[str, float] = {"A": 0.0, "B": 0.6}
+
+
+def _sigmoid(x: float) -> float:
+    return 1.0 / (1.0 + math.exp(-x))
+
+
+def _delay_probability(
+    *,
+    product_type: str,
+    line: str,
+    priority: OrderPriority,
+    quantity: int,
+    planned_start: datetime,
+) -> float:
+    """
+    Probabilidad latente de que la orden termine retrasada, como función
+    logística de sus features. Incluye un término de ruido gaussiano para
+    que las clases no sean linealmente separables (AUC realista, no 1.0).
+    """
+    logit = DELAY_INTERCEPT
+    logit += PRIORITY_DELAY_LOGIT.get(priority, 0.0)
+    logit += PRODUCT_DELAY_LOGIT.get(product_type, 0.0)
+    logit += LINE_DELAY_LOGIT.get(line, 0.0)
+    # Cantidad: lotes grandes (>15k) elevan el riesgo; pequeños lo bajan.
+    logit += ((quantity - 15_000) / 15_000.0) * 0.9
+    # Turno: la noche (turno_3) acumula más incidencias; tarde algo más.
+    shift = determine_shift(planned_start)
+    if shift == ShiftName.TURNO_3:
+        logit += 0.9
+    elif shift == ShiftName.TURNO_2:
+        logit += 0.3
+    # Fin de semana: menos personal de soporte → más retrasos.
+    if planned_start.weekday() >= 5:
+        logit += 0.8
+    # Ruido irreducible (variabilidad operativa no explicada por las features).
+    logit += random.gauss(0.0, 0.3)
+    return _sigmoid(logit)
+
+
+# -----------------------------------------------------------------------------
 # Utilidades
 # -----------------------------------------------------------------------------
 HASHED_DEFAULT_PASSWORD = hash_password(DEFAULT_PASSWORD)
@@ -187,24 +255,32 @@ def determine_shift(start_dt: datetime) -> ShiftName:
 
 
 def reset_database(db: Session) -> None:
-    """Vacía todas las tablas (manteniendo la estructura) en el orden seguro."""
-    log.info("Eliminando datos existentes...")
-    for model in (
-        MLPrediction,
-        OEERecord,
-        QualityRecord,
-        Material,
-        ProductionEvent,
-        OrderOperation,
-    ):
-        db.execute(delete(model))
-    # Romper el ciclo machines.current_order_id → production_orders.id antes
-    # de borrar órdenes.
-    db.execute(Machine.__table__.update().values(current_order_id=None))
-    db.execute(delete(ProductionOrder))
-    db.execute(delete(User))
-    db.execute(delete(Machine))
-    db.execute(delete(Shift))
+    """
+    Vacía todas las tablas y REINICIA las secuencias de identidad.
+
+    Se usa TRUNCATE ... RESTART IDENTITY CASCADE (en vez de DELETE) para que
+    los IDs vuelvan a empezar en 1 en cada re-seed. Esto hace el dataset
+    reproducible y mantiene válidas las suposiciones de los tests (máquinas
+    con IDs 1-8). CASCADE rompe automáticamente el ciclo
+    machines.current_order_id → production_orders.id.
+    """
+    log.info("Eliminando datos existentes (TRUNCATE RESTART IDENTITY)...")
+    tables = ", ".join(
+        model.__tablename__
+        for model in (
+            MLPrediction,
+            OEERecord,
+            QualityRecord,
+            Material,
+            ProductionEvent,
+            OrderOperation,
+            ProductionOrder,
+            User,
+            Machine,
+            Shift,
+        )
+    )
+    db.execute(text(f"TRUNCATE TABLE {tables} RESTART IDENTITY CASCADE"))
     db.commit()
 
 
@@ -361,11 +437,26 @@ def seed_orders_and_history(
                 )[0]
 
                 # Status de la orden cabecera según ubicación temporal.
+                # Para órdenes pasadas, el retraso se decide con el modelo de
+                # riesgo latente (función de las features) — NO al azar — para
+                # que el motor ML tenga señal real que aprender.
+                order_delay_hours = 0.0
                 if planned_end < now:
-                    order_status = random.choices(
-                        [OrderStatus.COMPLETED, OrderStatus.DELAYED],
-                        weights=[85, 15],
-                    )[0]
+                    delay_p = _delay_probability(
+                        product_type=product["type"],
+                        line=line,
+                        priority=priority,
+                        quantity=qty_ordered,
+                        planned_start=planned_start,
+                    )
+                    is_delayed = random.random() < delay_p
+                    order_status = OrderStatus.DELAYED if is_delayed else OrderStatus.COMPLETED
+                    if is_delayed:
+                        # Magnitud del retraso (horas por encima de planned_end).
+                        order_delay_hours = round(random.uniform(1.5, 9.0), 2)
+                    else:
+                        # A tiempo: termina antes o apenas tarde (< tolerancia 1h).
+                        order_delay_hours = round(random.uniform(-1.0, 0.7), 2)
                 elif planned_start <= now <= planned_end:
                     order_status = OrderStatus.IN_PROGRESS
                 else:
@@ -457,9 +548,17 @@ def seed_orders_and_history(
                         actual_start = op_planned_start + timedelta(
                             minutes=random.randint(-5, 15)
                         )
-                        actual_end = actual_start + op_duration * random.uniform(
-                            0.9, 1.15
-                        )
+                        if seq == len(ROUTE):
+                            # La última operación (EMP) fija el cierre de la
+                            # orden: planned_end + el retraso decidido por el
+                            # modelo de riesgo (coherente con el status DELAYED).
+                            actual_end = planned_end + timedelta(hours=order_delay_hours)
+                            if actual_end <= actual_start:
+                                actual_end = actual_start + timedelta(minutes=30)
+                        else:
+                            actual_end = actual_start + op_duration * random.uniform(
+                                0.9, 1.15
+                            )
                     elif op_status == OperationStatus.IN_PROGRESS:
                         ymin, ymax = NOMINAL_YIELD[mtype]
                         yield_ratio = random.uniform(ymin, ymax)
@@ -632,13 +731,19 @@ def seed_orders_and_history(
                     order.actual_start = first_started
                 if last_op.status == OperationStatus.COMPLETED:
                     order.actual_end = last_op.actual_end
-                # Máquina actual = donde hay operación IN_PROGRESS
+                # Máquina representativa de la orden:
+                #  · si hay operación en curso → esa máquina (estado actual);
+                #  · si la orden ya terminó → la fondadora (FON) de la línea,
+                #    cuello de botella que determina el destino de la orden y
+                #    da señal de "línea" al motor ML.
                 running_op = next(
                     (op for op in op_models_for_order if op.status == OperationStatus.IN_PROGRESS),
                     None,
                 )
                 if running_op:
                     order.machine_id = running_op.machine_id
+                elif order_status in (OrderStatus.COMPLETED, OrderStatus.DELAYED):
+                    order.machine_id = by_line_type[(line, MachineType.FONDADORA)].id
 
                 # ---- Calidad (solo si hubo producción real) ----
                 if order.quantity_produced > 0:
