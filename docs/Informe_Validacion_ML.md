@@ -89,12 +89,22 @@ La cercanía entre el F1 de validación cruzada (0,583) y el de test (0,592)
 indica que el modelo **no presenta sobreajuste**: generaliza de forma estable a
 datos no vistos.
 
+![Curva ROC del modelo XGBoost (AUC = 0,837)](./figuras/roc_curve.png)
+
+*Figura 1. Curva ROC del modelo ganador (XGBoost). El área bajo la curva (AUC =
+0,837) se separa con claridad de la diagonal del azar (0,500).*
+
 ### 4.2. Matriz de confusión (XGBoost, umbral 0,5)
 
 |  | Predicho: a tiempo | Predicho: retraso |
 |---|---|---|
 | **Real: a tiempo** | 88 (VN) | 21 (FP) |
 | **Real: retraso** | 19 (FN) | 29 (VP) |
+
+![Matriz de confusión del modelo XGBoost (umbral 0,5)](./figuras/confusion_matrix.png)
+
+*Figura 2. Matriz de confusión sobre el conjunto de test (157 órdenes,
+umbral 0,5).*
 
 Métricas derivadas:
 
@@ -123,6 +133,11 @@ Importancias del modelo ganador (XGBoost), ordenadas:
 | 8 | `product_type = Saco cemento 50kg` | 0,058 |
 | 9 | `priority = normal` | 0,053 |
 | 10 | `product_type = Saco harina 50kg` | 0,049 |
+
+![Top 12 de importancia de variables (XGBoost)](./figuras/feature_importance.png)
+
+*Figura 3. Importancia relativa (ganancia) de las 12 variables más influyentes
+del modelo XGBoost.*
 
 Las variables más influyentes son **coherentes con el conocimiento del dominio**:
 el tamaño del lote, los productos técnicamente más complejos (fertilizante
@@ -164,7 +179,11 @@ re-evaluarlo de inmediato sobre datos reales del ERP cuando estén disponibles.
 ```bash
 docker compose exec backend python -m scripts.seed --reset   # dataset determinista
 docker compose exec backend python -m ml.train               # entrena + escribe manifest
+docker compose exec backend python -m ml.figures             # regenera las figuras 1-3
 ```
+
+Las figuras (`docs/figuras/`) se reconstruyen con `ml/figures.py`, que usa el
+mismo modelo, datos y partición de test que `ml/train.py`.
 
 Las métricas quedan en `backend/ml/models/delay_predictor.manifest.json`
 (`RANDOM_SEED = 42`, `test_size = 0.2`, `random_state = 42`).
