@@ -1,0 +1,7 @@
+tarea,rol,tiempo_antes_seg,tiempo_despues_seg
+Estado y avance de una máquina,operario,,
+Cola de órdenes pendientes,operario,,
+Órdenes retrasadas del día,supervisor,,
+Máquina detenida y su causa,supervisor,,
+OEE / cumplimiento del turno,supervisor,,
+Consumo de material de una orden,supervisor,,

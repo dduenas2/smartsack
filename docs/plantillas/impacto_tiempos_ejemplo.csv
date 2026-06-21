@@ -1,0 +1,19 @@
+tarea,rol,tiempo_antes_seg,tiempo_despues_seg
+Estado y avance de una máquina,operario,180,8
+Estado y avance de una máquina,operario,150,10
+Estado y avance de una máquina,supervisor,200,7
+Cola de órdenes pendientes,operario,150,7
+Cola de órdenes pendientes,operario,120,6
+Cola de órdenes pendientes,operario,180,9
+Órdenes retrasadas del día,supervisor,600,12
+Órdenes retrasadas del día,supervisor,540,15
+Órdenes retrasadas del día,supervisor,660,10
+Máquina detenida y su causa,supervisor,240,10
+Máquina detenida y su causa,supervisor,210,9
+Máquina detenida y su causa,operario,270,12
+OEE / cumplimiento del turno,supervisor,900,6
+OEE / cumplimiento del turno,supervisor,840,8
+OEE / cumplimiento del turno,supervisor,960,5
+Consumo de material de una orden,supervisor,300,15
+Consumo de material de una orden,supervisor,330,18
+Consumo de material de una orden,operario,280,12
