@@ -46,8 +46,11 @@ supervisores el de toda la planta.
 Modelo de clasificación binaria (retraso sí/no) entrenado con Scikit-learn y
 XGBoost sobre un dataset a escala (783 órdenes etiquetables). El modelo ganador
 (XGBoost) alcanza **AUC-ROC 0,84 y F1 0,59** sobre datos no vistos, sin
-sobreajuste, con importancias de variables coherentes con el dominio. Se expone
-como servicio en FastAPI y alimenta las alertas proactivas del dashboard. (Ver
+sobreajuste, con importancias de variables coherentes con el dominio. Este F1
+valida la capacidad predictiva del componente, pero **queda por debajo del
+umbral de la hipótesis H2 (F1 > 0,80)**, que está definida sobre el dataset
+histórico real del ERP (ver §4). Se expone como servicio en FastAPI y alimenta
+las alertas proactivas del dashboard. (Ver
 [`Informe_Validacion_ML.md`](./Informe_Validacion_ML.md) y [`DATASET.md`](./DATASET.md).)
 
 ### 2.3. Asistente conversacional
@@ -81,17 +84,28 @@ visibilidad, la trazabilidad y la toma de decisiones en planta—, se cumplieron
 
 ## 4. Resultados de validación (E7)
 
-| Dimensión | Métrica | Criterio | Resultado |
-|---|---|---|---|
-| Precisión predictiva | AUC-ROC / F1 | ≥ 0,75 / ≥ 0,50 | **0,84 / 0,59** (medido) |
-| Usabilidad | SUS | ≥ 68 | Instrumento listo |
-| Impacto operativo | Reducción de tiempo | ≥ 50 % | Instrumento listo |
-| Satisfacción | Likert | ≥ 4,0 | Instrumento listo |
+La validación se organiza en cinco dimensiones, mapeadas a las **cuatro
+hipótesis específicas (H1–H4)** del anteproyecto. El detalle está en
+[`Informe_Validacion_E7.md`](./Informe_Validacion_E7.md).
 
-La precisión predictiva está validada con resultados que superan el criterio.
-Las dimensiones de usabilidad, impacto y satisfacción cuentan con instrumentos
-completos y operativos, listos para su aplicación con usuarios reales de la
-planta.
+| Dimensión | Hipótesis | Métrica | Umbral H | Resultado |
+|---|---|---|---|---|
+| Precisión predictiva | **H2** | F1 (dataset real ERP) | > 0,80 | **0,59 sobre dataset sintético → no alcanza H2** (medido) |
+| Impacto operativo | **H1** | Reducción del tiempo de acceso | <30 s (>10 min antes) | Instrumento listo |
+| Exactitud del asistente | **H3** | % respuestas correctas (50 preguntas) | ≥ 85 % | Instrumento listo |
+| Usabilidad | **H4** | SUS | > 70 | Instrumento listo |
+| Satisfacción | (general) | Likert | ≥ 4,0 | Instrumento listo |
+
+El componente predictivo está validado en cuanto a **capacidad predictiva real y
+explicable** (AUC 0,84; F1 0,59, por encima del piso de aceptación del
+instrumento), pero **H2 no se cumple todavía**: su umbral (F1 > 0,80) está
+definido sobre el **dataset histórico real del ERP**, y con el dataset sintético
+actual el F1 es 0,59. Cerrar H2 requiere cargar el histórico real vía ETL y
+reentrenar —infraestructura ya disponible (ver §7, Trabajo futuro)—. Las
+dimensiones de **impacto (H1), exactitud del asistente (H3), usabilidad (H4)** y
+satisfacción cuentan con instrumentos completos y operativos, listos para su
+aplicación con usuarios reales de la planta; sus ejemplos confirman el pipeline
+de medición de extremo a extremo.
 
 ## 5. Calidad y reproducibilidad
 
@@ -122,10 +136,12 @@ planta.
 
 ## 7. Trabajo futuro
 
-- **Validación de campo** completa de usabilidad, impacto y satisfacción con
-  usuarios reales, e incorporación de sus resultados al informe E7.
-- **Datos reales del ERP**: re-entrenar y re-validar el modelo con exportaciones
-  reales y monitorear el *drift* en producción.
+- **Validación de campo** completa para contrastar **H1** (impacto/tiempo),
+  **H3** (exactitud del asistente) y **H4** (usabilidad SUS) con usuarios reales,
+  e incorporación de sus resultados al informe E7.
+- **Datos reales del ERP**: cargar el histórico real vía ETL, re-entrenar y
+  re-validar el modelo para **contrastar H2 (F1 > 0,80)** —pendiente con el
+  dataset sintético actual— y monitorear el *drift* en producción.
 - **Predicción de la magnitud** del retraso (regresión) además de su ocurrencia,
   y calibración del umbral por análisis costo-beneficio.
 - **Acceso externo multi-rol** seguro (más allá de la red interna).
@@ -137,10 +153,12 @@ planta.
 SmartSack demuestra que es posible llevar inteligencia, visualización en tiempo
 real y consulta en lenguaje natural al piso de una planta de sacos de papel
 sobre la infraestructura existente, de forma portable y complementaria al ERP.
-Se cumplieron los siete objetivos planteados, el componente predictivo quedó
-validado con métricas que superan los criterios definidos, y la plataforma
-quedó documentada, probada y reproducible, lista para su transición a datos y
-usuarios reales.
+Se cumplieron los siete objetivos planteados y el componente predictivo quedó
+validado en su **capacidad predictiva real y explicable** (AUC 0,84; F1 0,59).
+De las cuatro hipótesis, **H2 (F1 > 0,80) queda pendiente** de contrastarse con
+el dataset histórico real del ERP, y **H1, H3 y H4** cuentan con instrumentos
+completos listos para el trabajo de campo. La plataforma quedó documentada,
+probada y reproducible, lista para su transición a datos y usuarios reales.
 
 ## 9. Documentación del proyecto
 
@@ -151,5 +169,6 @@ usuarios reales.
 | [`Informe_Validacion_E7.md`](./Informe_Validacion_E7.md) | Validación consolidada (4 dimensiones) |
 | [`Instrumento_SUS.md`](./Instrumento_SUS.md) | Cuestionario de usabilidad |
 | [`Instrumento_Impacto_Operativo.md`](./Instrumento_Impacto_Operativo.md) | Medición de impacto y satisfacción |
+| [`Instrumento_Chatbot.md`](./Instrumento_Chatbot.md) | Protocolo de exactitud del asistente (H3) |
 | [`Manual_Tecnico.md`](./Manual_Tecnico.md) | Manual técnico |
 | [`Manual_Usuario.md`](./Manual_Usuario.md) | Manual de usuario |
