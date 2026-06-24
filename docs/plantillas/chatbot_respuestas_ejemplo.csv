@@ -1,0 +1,51 @@
+id,categoria,pregunta,correcta
+1,produccion,¿Cuántos sacos se produjeron ayer?,1
+2,produccion,¿Cuál fue la producción total de esta semana?,1
+3,produccion,¿Cuántas órdenes se completaron hoy?,1
+4,produccion,¿Cuántas unidades buenas se produjeron este mes?,1
+5,produccion,¿Cuál es la tasa de cumplimiento de producción de la semana?,0
+6,produccion,¿Cuántas órdenes hay retrasadas actualmente?,1
+7,produccion,¿Cuántos sacos se fabricaron en el turno de la noche?,1
+8,maquina,¿Qué máquinas están detenidas en este momento?,1
+9,maquina,¿Cuál es el estado de la máquina TUB-01?,1
+10,maquina,¿Está funcionando la impresora de la línea A?,1
+11,maquina,¿Qué máquinas están en mantenimiento?,1
+12,maquina,¿Cuántas máquinas están operativas ahora?,1
+13,maquina,¿Qué orden está procesando la EMP-02?,1
+14,orden,¿En qué estado está la orden OP-2026-000010?,1
+15,orden,¿Qué orden está en proceso en la fondadora de la línea B?,1
+16,orden,¿Cuándo está planificada la orden OP-2026-000050?,1
+17,orden,¿Qué producto corresponde a la orden OP-2026-000020?,1
+18,orden,¿La orden OP-2026-000005 está retrasada?,1
+19,orden,¿Cuál es la cantidad pedida de la orden OP-2026-000030?,1
+20,oee,¿Cuál es el OEE de la planta?,1
+21,oee,¿Cuál es el OEE de la máquina FON-01?,1
+22,oee,¿Cómo está la disponibilidad de la línea A?,1
+23,oee,¿Cuál es el rendimiento promedio del último mes?,0
+24,oee,¿Qué máquina tiene el mejor OEE?,1
+25,oee,¿Cuál es la calidad promedio de la planta?,1
+26,alertas,¿Qué alertas de retraso hay?,1
+27,alertas,¿Hay órdenes en riesgo de retrasarse hoy?,1
+28,alertas,¿Qué órdenes tienen mayor probabilidad de retraso?,1
+29,alertas,¿Hay alguna alerta activa en la línea B?,1
+30,alertas,¿Cuántas alertas de retraso hay esta semana?,1
+31,scrap,¿Cuánto scrap hay en TUB-01 esta semana?,1
+32,scrap,¿Cuál es el desperdicio total de la planta este mes?,1
+33,scrap,¿Qué máquina genera más scrap?,1
+34,scrap,¿Cuál es la principal causa de desperdicio?,0
+35,scrap,¿Cuántos kg de scrap se generaron ayer?,1
+36,yield,¿Cuál es el yield de la fondadora este mes?,1
+37,yield,¿Qué máquina tiene el mejor rendimiento de material?,1
+38,yield,¿Cuál es el yield promedio de la línea A?,1
+39,yield,¿Cómo está el yield de la tubuladora?,1
+40,yield,¿Cuál es el yield del producto saco cemento 50kg?,1
+41,cuello_botella,¿Cuál es el cuello de botella de la planta?,1
+42,cuello_botella,¿Qué máquina limita la producción de la línea A?,1
+43,cuello_botella,¿Dónde se acumula más trabajo en proceso?,1
+44,cuello_botella,¿Qué etapa de la ruta es la más lenta?,0
+45,wip,¿Qué tengo en proceso ahora mismo?,1
+46,wip,¿Cuántas órdenes están en curso?,1
+47,wip,¿Qué hay en proceso en la línea B?,1
+48,wip,¿Cuánto trabajo en proceso hay en la fondadora?,1
+49,fuera_alcance,¿Cuál es el clima en Medellín hoy?,1
+50,fuera_alcance,¿Cuántos empleados tiene la empresa?,1

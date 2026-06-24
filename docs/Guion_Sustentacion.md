@@ -63,17 +63,21 @@ anticipadas. Duración objetivo: **15–20 minutos** + preguntas.
 - Captura: chat con preguntas de ejemplo. Dos modos (LLM / fallback).
 
 **D10 · Validación — marco**
-- Cuatro dimensiones: precisión, usabilidad (SUS), impacto operativo,
-  satisfacción. Criterios de éxito.
+- Cinco dimensiones mapeadas a las hipótesis del anteproyecto: precisión (H2),
+  impacto operativo (H1), exactitud del asistente (H3), usabilidad SUS (H4) y
+  satisfacción (hipótesis general). Criterios y umbrales por hipótesis.
 
 **D11 · Resultados — modelo ML**
 - Curva ROC (AUC 0,84) + tabla F1/precisión/recall. Importancia de variables.
 - *(Notas: subrayar que sin señal el modelo daba AUC ≈ 0,52; el aporte fue
-  modelar el riesgo de retraso.)*
+  modelar el riesgo de retraso. Ser explícito: el F1 0,59 valida la capacidad
+  predictiva pero **aún no alcanza H2 (F1>0,80)**, que exige el dataset real del
+  ERP — es el único contraste de hipótesis pendiente de un insumo externo.)*
 
-**D12 · Resultados — usabilidad e impacto**
-- SUS, reducción de tiempo y satisfacción: instrumentos listos (con ejemplos);
-  trabajo de campo como siguiente paso.
+**D12 · Resultados — usabilidad, impacto y asistente**
+- SUS (H4), reducción de tiempo (H1), exactitud del asistente (H3, protocolo de
+  50 preguntas) y satisfacción: instrumentos listos (con ejemplos); trabajo de
+  campo como siguiente paso.
 
 **D13 · Cumplimiento de objetivos**
 - Tabla: 7/7 objetivos cumplidos, con su evidencia.
@@ -110,6 +114,21 @@ consumir las exportaciones reales con el mismo esquema cuando estén disponibles
 Al contrario: se calibró deliberadamente con ruido para que **no** fuera
 perfecto. La señal proviene de un modelo de riesgo explícito y explicable; las
 importancias de variables confirman que aprende factores plausibles.
+
+**¿Se cumplió la hipótesis H2 (F1 > 0,80)?**
+Todavía no. H2 está definida sobre el dataset histórico real del ERP, y con el
+dataset sintético el F1 es 0,59. Lo que sí se demuestra es que el modelo y el
+pipeline tienen capacidad predictiva real y explicable (AUC 0,84, sin
+sobreajuste). Cerrar H2 requiere cargar el histórico real vía el ETL ya
+implementado y reentrenar; se reporta de forma transparente y queda como el
+contraste pendiente. Las hipótesis H1, H3 y H4 tienen sus instrumentos listos
+para el trabajo de campo.
+
+**¿Cómo se midió la exactitud del asistente (H3)?**
+Con un protocolo cerrado de 50 preguntas estandarizadas sobre datos de
+producción, cada una calificada como acierto/fallo; la calculadora
+`chatbot_score.py` reporta el porcentaje global y por categoría y lo contrasta
+con el umbral de H3 (≥ 85 %).
 
 **¿Cómo se evita el sobreajuste?**
 Validación cruzada estratificada 5-fold para los hiperparámetros y evaluación en

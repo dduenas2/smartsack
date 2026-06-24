@@ -31,7 +31,8 @@ papel.
 | [`Informe_Validacion_ML.md`](./Informe_Validacion_ML.md) | Evaluación del modelo de predicción de retrasos (AUC-ROC, F1, matriz de confusión, importancia de variables). |
 | [`Instrumento_SUS.md`](./Instrumento_SUS.md) | Cuestionario de usabilidad System Usability Scale (SUS): instrumento, protocolo y puntuación. |
 | [`Instrumento_Impacto_Operativo.md`](./Instrumento_Impacto_Operativo.md) | Medición del impacto operativo (tiempo pre/post) y encuesta de satisfacción. |
-| [`Informe_Validacion_E7.md`](./Informe_Validacion_E7.md) | **Informe maestro** que consolida las 4 dimensiones de validación. |
+| [`Instrumento_Chatbot.md`](./Instrumento_Chatbot.md) | Protocolo de 50 preguntas para medir la exactitud del asistente conversacional (hipótesis H3). |
+| [`Informe_Validacion_E7.md`](./Informe_Validacion_E7.md) | **Informe maestro** que consolida las 5 dimensiones de validación y las mapea a las hipótesis H1–H4. |
 
 ## 🧰 Recursos
 
@@ -39,7 +40,7 @@ papel.
 |---|---|
 | [`figuras/`](./figuras/) | Figuras del informe de ML (curva ROC, matriz de confusión, importancia de variables). |
 | [`capturas/`](./capturas/) | Capturas de pantalla de la aplicación usadas en el manual de usuario. |
-| [`plantillas/`](./plantillas/) | Plantillas CSV y calculadoras de los instrumentos de evaluación (`sus_score.py`, `impacto_score.py`). |
+| [`plantillas/`](./plantillas/) | Plantillas CSV y calculadoras de los instrumentos de evaluación (`sus_score.py`, `impacto_score.py`, `chatbot_score.py`). |
 
 ---
 
@@ -60,4 +61,5 @@ docker compose exec backend python -m ml.figures
 python3 docs/plantillas/sus_score.py docs/plantillas/sus_respuestas_ejemplo.csv
 python3 docs/plantillas/impacto_score.py docs/plantillas/impacto_tiempos_ejemplo.csv \
     --satisfaccion docs/plantillas/impacto_satisfaccion_ejemplo.csv
+python3 docs/plantillas/chatbot_score.py docs/plantillas/chatbot_respuestas_ejemplo.csv
 ```
