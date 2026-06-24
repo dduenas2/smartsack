@@ -98,3 +98,15 @@ backend/etl/sample_data/*.csv
 .LSOverride
 ehthumbs.db
 desktop.ini
+
+# Metadatos de Windows (marca "descargado de internet")
+*:Zone.Identifier
+
+# ----- Documentos binarios y artefactos fuera del repo de código -----
+# Documentos institucionales del TG (.docx) y temporales de Word: se entregan aparte.
+*.docx
+*.doc
+*.pptx
+~$*
+# Prompts de desarrollo: artefactos de construcción, no parte del código entregable.
+PROMPT_*.txt
