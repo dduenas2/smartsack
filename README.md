@@ -128,13 +128,24 @@ cp .env.example .env
 # 3. Levantar todos los servicios
 docker compose up -d --build
 
-# 4. Verificar que todo funciona
+# 4. Aplicar las migraciones de base de datos
+docker compose exec backend alembic upgrade head
+
+# 5. Cargar los datos demo (8 máquinas, ~6 meses de historia, 24 operarios)
+#    REQUERIDO para poder iniciar sesión: crea los usuarios de prueba.
+docker compose exec backend python -m scripts.seed
+
+# 6. Verificar que todo funciona
 curl http://localhost/api/health
 # → {"status":"ok","service":"SmartSack","timestamp":"..."}
 
-# 5. Abrir la SPA en el navegador
+# 7. Abrir la SPA en el navegador e iniciar sesión (ver "Usuarios de prueba")
 # http://localhost
 ```
+
+> **Importante:** una base de datos recién creada está vacía. Los pasos 4 y 5
+> (migraciones + seed) son obligatorios antes del primer inicio de sesión; sin
+> ellos la SPA carga pero no existe ningún usuario para autenticarse.
 
 ### Endpoints útiles
 
