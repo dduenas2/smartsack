@@ -110,3 +110,5 @@ desktop.ini
 ~$*
 # Prompts de desarrollo: artefactos de construcción, no parte del código entregable.
 PROMPT_*.txt
+# Instrucciones del asistente de IA (Claude Code): artefacto de desarrollo, no entregable.
+CLAUDE.md
